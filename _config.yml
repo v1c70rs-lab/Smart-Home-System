@@ -1,6 +1,6 @@
 lsi: false
 safe: true
-source: [your repo's top level directory]
+source: [/home/victor/Desktop/automatisering-binnenverlichting]
 incremental: false
 highlighter: rouge
 gist:
