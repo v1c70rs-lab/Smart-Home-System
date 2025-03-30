@@ -98,6 +98,7 @@ def beheer_lamp(lamp, begin_tijd, eind_tijd, topicList, licht_drempel=None, dag_
 
     # Als dag regstrictie is meegegeven, check dan welke dag het is
     if dag_restrictie and huidige_tijd.weekday() != dag_restrictie:
+        print(f"\n{lamp.capitalize()} gaat niet aan, niet juiste dag!\n")
         if lampen_status[lamp]:
             print(f"\n{lamp.capitalize()} lamp gaat uit (niet de juiste dag)!\n")
             for topic in topicList:
@@ -109,6 +110,7 @@ def beheer_lamp(lamp, begin_tijd, eind_tijd, topicList, licht_drempel=None, dag_
         return
 
     if begin_tijd <= huidige_tijd <= eind_tijd:
+        print(f"{lamp} zit in begin_tijd huidige_tijd eind_tijd check")
         if not lampen_status[lamp] and licht_drempel:
             if light_value < licht_drempel:
                 timer[lamp] += 1
@@ -133,6 +135,7 @@ def beheer_lamp(lamp, begin_tijd, eind_tijd, topicList, licht_drempel=None, dag_
                     client.publish(topic, "2 1")
             lampen_status[lamp] = True
     else:
+        print(f"{lamp} zit niet in het tijdvak")
         if lampen_status[lamp]:
             print(f"\n{lamp.capitalize()} lamp gaat uit (einde tijdvak)!\n")
             for topic in topicList:
@@ -170,6 +173,6 @@ while True:
     # Beheer lampen
     beheer_lamp("normaal", begin_tijd, eind_tijd, normaalTopicList, 50)
     beheer_lamp("shabbat", shabbat_begin_tijd, shabbat_eind_tijd, shabbatTopicList, 100, dag_restrictie=4)
-    beheer_lamp("warmhoudplaat", warmhoudplaat_begin_tijd, warmhoudplaat_eind_tijd, warmhoudplaatTopicList, dag_restrictie=5, seizoensperiode=("21-03-2024", "21-12-2024"))
+    beheer_lamp("warmhoudplaat", warmhoudplaat_begin_tijd, warmhoudplaat_eind_tijd, warmhoudplaatTopicList, dag_restrictie=5, seizoensperiode=("21-03-2024", "21-09-2024"))
 
     time.sleep(1)
