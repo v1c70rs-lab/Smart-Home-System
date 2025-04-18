@@ -2,7 +2,33 @@ import paho.mqtt.client as mqtt
 import time
 from suntime import Sun
 from datetime import datetime, date, timedelta
+from logging.handlers import RotatingFileHandler
 import pytz
+import logging
+
+# logger instellingen
+logger = logging.getLogger()
+logger.setLevel("DEBUG")
+formatter = logging.Formatter(
+    "{asctime} - {levelname} - {message}",
+    style="{",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+
+console_handler = logging.StreamHandler()
+console_handler.setLevel("INFO")
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
+rotating_handler = RotatingFileHandler(
+    "apps.log",
+    mode="a",
+    encoding="utf-8",
+    maxBytes=100000,
+    backupCount=3)
+rotating_handler.setLevel("DEBUG")
+rotating_handler.setFormatter(formatter)
+logger.addHandler(rotating_handler)
 
 # MQTT instellingen
 MQTT_BROKER = "localhost"
@@ -14,7 +40,7 @@ MQTT_TOPIC_SMARTPLUG3 = "cmnd/home/smartplug3/Power"
 MQTT_TOPIC_SMARTPLUG4 = "cmnd/home/smartplug4/Power"
 MQTT_TOPIC_SMARTPLUG5 = "cmnd/test/SetChannel"
 
-# Lijst met MQTT-topics
+# Lijsten met MQTT-topics
 normaalTopicList = [MQTT_TOPIC_SMARTPLUG1, MQTT_TOPIC_SMARTPLUG2, MQTT_TOPIC_SMARTPLUG3, MQTT_TOPIC_SMARTPLUG4]
 shabbatTopicList = [MQTT_TOPIC_SMARTPLUG5]
 warmhoudplaatTopicList = [MQTT_TOPIC_SMARTPLUG3]
@@ -26,7 +52,7 @@ tz_netherlands = pytz.timezone("Europe/Amsterdam")
 sun = Sun(latitude, longtitude)
 
 # Globale variabelen
-light_value = 150
+light_value = 0
 lampen_status = {"normaal": False, "shabbat": False, "warmhoudplaat": False}
 timer = {"normaal": 0, "shabbat": 0,}
 
@@ -70,9 +96,11 @@ def shabbat_bereken_tijdvakken():
     shabbat_eind_tijd = today_ss.astimezone(tz_netherlands) + timedelta(hours=2)
     return shabbat_begin_tijd, shabbat_eind_tijd
 
-# Tijdvaken warmhoudplaat
-warmhoudplaat_begin_tijd = datetime.now(tz_netherlands).replace(hour=12, minute=0, second=0)
-warmhoudplaat_eind_tijd = datetime.now(tz_netherlands).replace(hour=13, minute=0, second=0)
+# Bereken warmhoudplaat tijdvakken
+def warmhoudplaat_bereken_tijdvakken():
+    warmhoudplaat_begin_tijd = datetime.now(tz_netherlands).replace(hour=12, minute=0, second=0)
+    warmhoudplaat_eind_tijd = datetime.now(tz_netherlands).replace(hour=13, minute=0, second=0)
+    return warmhoudplaat_begin_tijd, warmhoudplaat_eind_tijd
 
 # Beheer lampen
 def beheer_lamp(lamp, begin_tijd, eind_tijd, topicList, licht_drempel=None, dag_restrictie=None, seizoensperiode=None):
@@ -93,57 +121,74 @@ def beheer_lamp(lamp, begin_tijd, eind_tijd, topicList, licht_drempel=None, dag_
             eind_datum = eind_datum.replace(year=huidige_tijd.year + 1) if huidige_tijd < start_datum else eind_datum
         
         if not (start_datum <= huidige_tijd <= eind_datum): # Als de start_datum niet kleiner is dan huidige tijd en ook niet kleiner is dan eind_datum, dan zit de huidige_tijd niet binnen het seizoensvak
-            print(f"{lamp.capitalize()} wordt niet ingeschakeld buiten de seizoensperiode ({start_datum1}, {eind_datum1}).")
+            logger.debug(f"{lamp.capitalize()} wordt niet ingeschakeld buiten de seizoensperiode ({start_datum1}, {eind_datum1}).")
             return
+        logger.debug(f"Juiste seizoensperiode voor {lamp}")
 
     # Als dag regstrictie is meegegeven, check dan welke dag het is
-    if dag_restrictie and huidige_tijd.weekday() != dag_restrictie:
-        print(f"\n{lamp.capitalize()} gaat niet aan, niet juiste dag!\n")
-        if lampen_status[lamp]:
-            print(f"\n{lamp.capitalize()} lamp gaat uit (niet de juiste dag)!\n")
-            for topic in topicList:
-                if topic != MQTT_TOPIC_SMARTPLUG5:
-                    client.publish(topic, "0")
-                else:
-                    client.publish(topic, "2 0")
-            lampen_status[lamp] = False                    
-        return
+    if dag_restrictie:
+        if dag_restrictie and huidige_tijd.weekday() != dag_restrictie:
+            logger.debug(f"{lamp.capitalize()} gaat niet aan, niet juiste dag!")
+            if lampen_status[lamp]:
+                logger.debug(f"{lamp.capitalize()} lamp gaat uit (niet de juiste dag)!")
+                for topic in topicList:
+                    if topic != MQTT_TOPIC_SMARTPLUG5:
+                        client.publish(topic, "0")
+                        logger.debug(f"{topic}, uit")
+                    else:
+                        client.publish(topic, "2 0")
+                        logger.debug(f"{topic}, uit")
+                lampen_status[lamp] = False
+                logger.info(f"{lamp.capitalize()} uit")
+            return
+        logger.debug(f"Juiste dag voor {lamp}")
 
     if begin_tijd <= huidige_tijd <= eind_tijd:
-        print(f"{lamp} zit in begin_tijd huidige_tijd eind_tijd check")
+        logger.debug(f"Tijd valt binnen {lamp}-tijdvak")
         if not lampen_status[lamp] and licht_drempel:
+            logger.debug(f"{lamp.capitalize()} is nog niet aan en licht_drempel is meegegeven")
             if light_value < licht_drempel:
                 timer[lamp] += 1
-                print(f"{lamp.capitalize()} timer: {timer[lamp]} seconden")
-                if timer[lamp] >= 60:
-                    print(f"\n{lamp.capitalize()} lamp gaat aan!\n")
+                print(f"{lamp.capitalize()}-timer: {timer[lamp]} seconden")
+                logger.debug(f"{lamp.capitalize()}-timer loopt: {timer[lamp]} seconden")
+                if timer[lamp] >= 5:
                     for topic in topicList:
                         if topic != MQTT_TOPIC_SMARTPLUG5:
                             client.publish(topic, "1")
+                            logger.debug(f"{topic}, aan")
                         else:
                             client.publish(topic, "2 1")
+                            logger.debug(f"{topic}, aan")
                     lampen_status[lamp] = True
+                    logger.info(f"{lamp.capitalize()}, aan")
             else:
                 timer[lamp] = 0  # Reset timer als het niet donker genoeg is
+                logger.debug(f"Timer reset naar 0, lichtwaarde({light_value}) niet onder drempelwaarde({licht_drempel})")
         # Lamp blijft aan tijdens het tijdvak
         elif not lampen_status[lamp] and not licht_drempel:
-            print(f"{lamp.capitalize()} gaat aan!\n")
+            logger.debug(f"{lamp.capitalize()} is nog niet aan en licht_drempel is niet meegegeven")
             for topic in topicList:
                 if topic != MQTT_TOPIC_SMARTPLUG5:
                     client.publish(topic, "1")
+                    logger.debug(f"{topic}, aan")
                 else:
                     client.publish(topic, "2 1")
+                    logger.debug(f"{topic}, aan")
             lampen_status[lamp] = True
+            logger.info(f"{lamp.capitalize()} aan")
     else:
-        print(f"{lamp} zit niet in het tijdvak")
+        logger.debug(f"Tijd valt niet binnen {lamp}-tijdvak")
         if lampen_status[lamp]:
-            print(f"\n{lamp.capitalize()} lamp gaat uit (einde tijdvak)!\n")
+            logger.debug(f"{lamp.capitalize()} gaat uit (einde tijdvak)")
             for topic in topicList:
                 if topic != MQTT_TOPIC_SMARTPLUG5:
                     client.publish(topic, "0")
+                    logger.debug(f"{topic}, uit")
                 else:
                     client.publish(topic, "2 0")
+                    logger.debug(f"{topic}, uit")
             lampen_status[lamp] = False
+            logger.info(f"{lamp.capitalize()} uit")
         timer[lamp] = 0  # Reset timer buiten tijdvak
 
 # MQTT client instellen
@@ -156,19 +201,23 @@ client.loop_start()
 # Hoofdprogramma
 begin_tijd, eind_tijd = bereken_tijdvakken()
 shabbat_begin_tijd, shabbat_eind_tijd = shabbat_bereken_tijdvakken()
+warmhoudplaat_begin_tijd, warmhoudplaat_eind_tijd = warmhoudplaat_bereken_tijdvakken()
 
 while True:
     huidige_tijd = datetime.now(tz_netherlands)
 
     # Update tijdvakken bij een nieuwe dag
     if huidige_tijd.date() != begin_tijd.date():
-        print("\nik ben tijdvakken opnieuw aan het berekenen.\n")
+        logger.debug("Nieuwe dag aangebroken, bereken nieuwe tijdvakken!")
         begin_tijd, eind_tijd = bereken_tijdvakken()
         shabbat_begin_tijd, shabbat_eind_tijd = shabbat_bereken_tijdvakken()
+        warmhoudplaat_begin_tijd, warmhoudplaat_eind_tijd = warmhoudplaat_bereken_tijdvakken()
 
     print(f"Huidige tijd: {huidige_tijd}")
-    print(f"Normale tijdvakken: {begin_tijd} - {eind_tijd}")
-    print(f"Shabbat tijdvakken: {shabbat_begin_tijd} - {shabbat_eind_tijd}")
+    print(f"Normaal-tijdvak: {begin_tijd} - {eind_tijd}")
+    print(f"Shabbat-tijdvak: {shabbat_begin_tijd} - {shabbat_eind_tijd}")
+    print(f"Warmhoudplaat-tijdvak: {warmhoudplaat_begin_tijd} - {warmhoudplaat_eind_tijd}")
+    print(f"\n{lampen_status}\n")
 
     # Beheer lampen
     beheer_lamp("normaal", begin_tijd, eind_tijd, normaalTopicList, 50)
