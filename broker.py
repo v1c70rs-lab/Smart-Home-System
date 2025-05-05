@@ -93,7 +93,7 @@ def shabbat_bereken_tijdvakken():
 
     today_ss = sun.get_sunset_time(huidige_datum)
     shabbat_begin_tijd = today_ss.astimezone(tz_netherlands) - timedelta(minutes=18)
-    shabbat_eind_tijd = today_ss.astimezone(tz_netherlands) + timedelta(hours=2)
+    shabbat_eind_tijd = shabbat_begin_tijd + timedelta(hours=1, minutes=30)
     return shabbat_begin_tijd, shabbat_eind_tijd
 
 # Bereken warmhoudplaat tijdvakken
