@@ -139,13 +139,10 @@ def shabbat_bereken_tijdvakken():
         parsed_date = tz_netherlands.localize(parsed_date)
         print(parsed_date)
         if parsed_date.date() == current_date:
-            print("het is zo")
             shabbat_begin_tijd = parsed_date
             shabbat_eind_tijd = parsed_date + timedelta(hours=1, minutes=30)
             return shabbat_begin_tijd, shabbat_eind_tijd
-        else:
-            print("Het is niet zo")
-        # placeholder tijd retourneren want het is toch geen shabbat
+        # placeholder tijd retourneren die nooit op shabbat valt, want het is toch geen shabbat
     placeholder = tz_netherlands.localize(datetime(2025, 12, 31, 0, 0, 0))
     return placeholder, placeholder
 
