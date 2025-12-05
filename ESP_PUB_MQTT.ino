@@ -4,7 +4,7 @@
 #include <BH1750.h>
 
 const char* ssid = "H369A7296C8_2.4GHz";
-const char* password = "KM01nigg";
+const char* password = "xxxxxx";
 
 IPAddress ip(192, 168, 2 , 46);
 IPAddress gateway(192, 168, 2, 254);
