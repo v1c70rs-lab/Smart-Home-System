@@ -10,47 +10,11 @@ from pysolar.solar import get_altitude
 from astral import LocationInfo
 
 shabbat_dict = [
- "13-dec 16:01",  # Wajislach (14-dec begin 16:01) → vrijdag 13-dec :contentReference[oaicite:0]{index=0}
- "20-dec 16:03",  # Wajeesjew (21-dec begin 16:03) → vrijdag 20-dec :contentReference[oaicite:1]{index=1}
- "27-dec 16:08",  # Mikeets-Chanoeka (28-dec begin 16:08) → vrijdag 27-dec :contentReference[oaicite:2]{index=2}
- "03-jan 16:15",  # Wajigasj (04-jan begin 16:15) → vrijdag 03-jan :contentReference[oaicite:3]{index=3}
- "10-jan 16:25",  # Wajechi (11-jan begin 16:25) → vrijdag 10-jan :contentReference[oaicite:4]{index=4}
- "17-jan 16:32",  # Sjemot (18-jan begin 16:32) → vrijdag 17-jan :contentReference[oaicite:5]{index=5}
- "23-jan 16:48",  # Wa ’eera (24-jan begin 16:48) → vrijdag 23-jan :contentReference[oaicite:6]{index=6}
- "31-jan 17:02",  # Bo (01-feb begin 17:02) → vrijdag 31-jan :contentReference[oaicite:7]{index=7}
- "07-feb 17:15",  # Besjalach (08-feb begin 17:15) → vrijdag 07-feb :contentReference[oaicite:8]{index=8}
- "14-feb 17:29",  # Jitro (15-feb begin 17:29) → vrijdag 14-feb :contentReference[oaicite:9]{index=9}
- "21-feb 17:43",  # Misjpatiem (22-feb begin 17:43) → vrijdag 21-feb :contentReference[oaicite:10]{index=10}
- "28-feb 17:56",  # Teroema (01-mar begin 17:56) → vrijdag 28-feb :contentReference[oaicite:11]{index=11}
- "07-mar 18:09",  # Tetsawee (08-mar begin 18:09) → vrijdag 07-mar :contentReference[oaicite:12]{index=12}
- "14-mar 18:22",  # Kie Tisa (15-mar begin 18:22) → vrijdag 14-mar :contentReference[oaicite:13]{index=13}
- "21-mar 18:35",  # Wajakheel (22-mar begin 18:35) → vrijdag 21-mar :contentReference[oaicite:14]{index=14}
- "28-mar 18:48",  # Pekoedee (29-mar begin 18:48) → vrijdag 28-mar :contentReference[oaicite:15]{index=15}
- "04-apr 20:00",  # Wajikra (05-apr begin 20:00) → vrijdag 04-apr :contentReference[oaicite:16]{index=16}
- "11-apr 20:13",  # Tsav (12-apr begin 20:13) → vrijdag 11-apr :contentReference[oaicite:17]{index=17}
- "18-apr 19:19",  # Zevende dag Pesach (19-apr begin 19:19) → vrijdag 18-apr :contentReference[oaicite:18]{index=18}
- "25-apr 19:28",  # Sjemini (26-apr begin 19:28) → vrijdag 25-apr :contentReference[oaicite:19]{index=19}
- "02-may 19:38",  # Tazria-Metsora (03-mei begin 19:38) → vrijdag 02-mei :contentReference[oaicite:20]{index=20}
- "09-may 19:47",  # Acharee Mot–Kedosjiem (10-mei begin 19:47) → vrijdag 09-mei :contentReference[oaicite:21]{index=21}
- "16-may 19:56",  # Emor (17-mei begin 19:56) → vrijdag 16-mei :contentReference[oaicite:22]{index=22}
- "23-may 20:05",  # Behar (24-mei begin 20:05) → vrijdag 23-mei :contentReference[oaicite:23]{index=23}
- "30-may 20:13",  # Bemidbar (31-mei begin 20:13) → vrijdag 30-mei :contentReference[oaicite:24]{index=24}
- "06-jun 20:19",  # Naso (07-jun begin 20:19) → vrijdag 06-jun :contentReference[oaicite:25]{index=25}
- "13-jun 20:23",  # Beha’alotecha (14-jun begin 20:23) → vrijdag 13-jun :contentReference[oaicite:26]{index=26}
- "20-jun 20:26",  # Sjelach Lecha (21-jun begin 20:26) → vrijdag 20-jun :contentReference[oaicite:27]{index=27}
- "27-jun 20:27",  # Korach (28-jun begin 20:27) → vrijdag 27-jun :contentReference[oaicite:28]{index=28}
- "04-jul 20:25",  # Choekat (05-jul begin 20:25) → vrijdag 04-jul :contentReference[oaicite:29]{index=29}
- "11-jul 20:21",  # Balak (12-jul begin 20:21) → vrijdag 11-jul :contentReference[oaicite:30]{index=30}
- "18-jul 20:15",  # Pinchas (19-jul begin 20:15) → vrijdag 18-jul :contentReference[oaicite:31]{index=31}
- "25-jul 20:07",  # Matot-Masee (26-jul begin 20:07) → vrijdag 25-jul :contentReference[oaicite:32]{index=32}
- "01-aug 19:58",  # Dewariem (02-aug begin 19:58) → vrijdag 01-aug :contentReference[oaicite:33]{index=33}
- "08-aug 19:48",  # Wa-etchanan (09-aug begin 19:48) → vrijdag 08-aug :contentReference[oaicite:34]{index=34}
- "15-aug 19:36",  # Eekev (16-aug begin 19:36) → vrijdag 15-aug :contentReference[oaicite:35]{index=35}
- "22-aug 19:24",  # Re-ee (23-aug begin 19:24) → vrijdag 22-aug :contentReference[oaicite:36]{index=36}
- "29-aug 19:11",  # Sjoftiem (30-aug begin 19:11) → vrijdag 29-aug :contentReference[oaicite:37]{index=37}
- "05-sep 19:00",  # Kie Teetsee (06-sep begin 19:00) → vrijdag 05-sep :contentReference[oaicite:38]{index=38}
- "12-sep 19:00",  # Kie Tawo (13-sep begin 19:00) → vrijdag 12-sep :contentReference[oaicite:39]{index=39}
- "19-sep 19:00",  # Newatiem (20-sep begin 19:00) → vrijdag 19-sep :contentReference[oaicite:40]{index=40}
+ "13-dec 16:01",
+ "20-dec 16:03",
+ "27-dec 16:08",
+ "03-jan 16:15",
+ "10-jan 16:25",
 ]
 
 
