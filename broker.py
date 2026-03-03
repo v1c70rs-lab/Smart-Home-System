@@ -92,7 +92,7 @@ rotating_handler.setFormatter(formatter)
 MQTT_BROKER = "localhost"
 MQTT_PORT = 1883
 MQTT_TOPIC_LIGHT = "home/lightsensor"
-MQTT_TOPIC_TEMP = "sperma_temps/1/get"
+MQTT_TOPIC_TEMP = "tempsensor/1/get"
 MQTT_TOPIC_SMARTPLUG1 = "cmnd/home/smartplug1/Power"
 MQTT_TOPIC_SMARTPLUG2 = "cmnd/home/smartplug2/Power"
 MQTT_TOPIC_SMARTPLUG3 = "cmnd/home/smartplug3/Power"
@@ -108,7 +108,7 @@ kachelTopicList = [MQTT_TOPIC_SMARTPLUG6]
 
 topic_map = {
     "home/lightsensor": ("light_value", "lichtwaarde"),
-    "sperma_temps/1/get": ("temp_value", "temperatuurwaarde")
+    "tempsensor/1/get": ("temp_value", "temperatuurwaarde")
 }
 
 # Zon- en tijdzone-instellingen
