@@ -74,7 +74,7 @@ formatter = logging.Formatter(
 )
 
 console_handler = logging.StreamHandler()
-console_handler.setLevel("INFO")
+console_handler.setLevel("DEBUG")
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
@@ -120,7 +120,7 @@ sun = Sun(latitude, longtitude)
 device_state = {"normaal": False, "shabbat": False, "warmhoudplaat": False, "warmhoudplaat2": False, "kachel": False}
 timer = {"normaal": 0, "shabbat": 0, "kachel": 0}
 
-light_value = 1500
+light_value = 15
 temp_value = 1500
 
 # MQTT callback functies
@@ -227,50 +227,79 @@ def manage_devices(device, begin_tijd, eind_tijd, topicList, sens_value=None, th
 
     if begin_tijd <= huidige_tijd <= eind_tijd:
         logger.debug(f"Tijd valt binnen {device}-tijdvak")
-        if not device_state[device] and threshold:
-            logger.debug(f"{device.capitalize()} is nog niet aan en threshold is meegegeven")
-            if sens_value < threshold:
-                timer[device] += 10
-                logger.debug(f"{device.capitalize()}-timer loopt: {timer[device]} seconden")
-                if timer[device] >= 60:
-                    for topic in topicList:
-                        if topic != MQTT_TOPIC_SMARTPLUG5:
-                            client.publish(topic, "1")
-                            logger.debug(f"{topic}, aan")
-                        else:
-                            client.publish(topic, "2 1")
-                            logger.debug(f"{topic}, aan")
-                    device_state[device] = True
-                    logger.info(f"{device.capitalize()}, aan")
-            else:
-                timer[device] = 0  # Reset timer als het niet donker genoeg is
-                logger.debug(f"Timer reset naar 0, lichtwaarde({sens_value}) niet onder drempelwaarde({threshold})")
-        # device blijft aan tijdens het tijdvak
-        elif not device_state[device] and not threshold:
-            logger.debug(f"{device.capitalize()} is nog niet aan en threshold is niet meegegeven")
-            for topic in topicList:
-                if topic != MQTT_TOPIC_SMARTPLUG5:
-                    client.publish(topic, "1")
-                    logger.debug(f"{topic}, aan")
-                else:
-                    client.publish(topic, "2 1")
-                    logger.debug(f"{topic}, aan")
-            device_state[device] = True
-            logger.info(f"{device.capitalize()} aan")
-    else:
-        logger.debug(f"Tijd valt niet binnen {device}-tijdvak")
-        if device_state[device]:
-            logger.debug(f"{device.capitalize()} gaat uit (einde tijdvak)")
-            for topic in topicList:
-                if topic != MQTT_TOPIC_SMARTPLUG5:
-                    client.publish(topic, "0")
-                    logger.debug(f"{topic}, uit")
-                else:
-                    client.publish(topic, "2 0")
-                    logger.debug(f"{topic}, uit")
-            device_state[device] = False
-            logger.info(f"{device.capitalize()} uit")
-        timer[device] = 0  # Reset timer buiten tijdvak
+        if sens_value < threshold and not device_state[device]:
+            logger.debug(f"sensor value ({sens_value}) is lower than threshold ({threshold}) (power on)")
+            timer[device] += 10
+            logger.debug(f"{device.capitalize()}-timer loopt: {timer[device]} seconden")
+            if timer[device] >= 60:
+                for topic in topicList:
+                    if topic != MQTT_TOPIC_SMARTPLUG5:
+                        client.publish(topic, "1")
+                        logger.debug(f"{topic}, on")
+                    else:
+                        client.publish(topic, "2 1")
+                        logger.debug(f"{topic}, on")
+                device_state[device] = True
+        elif sens_value > threshold and device_state[device]:
+            logger.debug(f"sensor value ({sens_value}) is higher than threshold ({threshold}) (power off)")
+            timer[device] += 10
+            logger.debug(f"{device.capitalize()}-timer loopt: {timer[device]} seconden")
+            if timer[device] >= 60:
+                for topic in topicList:
+                    if topic != MQTT_TOPIC_SMARTPLUG5:
+                        client.publish(topic, "0")
+                        logger.debug(f"{topic}, off")
+                    else:
+                        client.publish(topic, "2 0")
+                        logger.debug(f"{topic}, off")
+                device_state[device] = False
+        # else:
+            
+
+        # if not device_state[device] and threshold:
+        #     logger.debug(f"{device.capitalize()} is nog niet aan en threshold is meegegeven")
+        #     if sens_value < threshold:
+        #         timer[device] += 10
+        #         logger.debug(f"{device.capitalize()}-timer loopt: {timer[device]} seconden")
+        #         if timer[device] >= 60:
+        #             for topic in topicList:
+        #                 if topic != MQTT_TOPIC_SMARTPLUG5:
+        #                     client.publish(topic, "1")
+        #                     logger.debug(f"{topic}, aan")
+        #                 else:
+        #                     client.publish(topic, "2 1")
+        #                     logger.debug(f"{topic}, aan")
+        #             device_state[device] = True
+        #             logger.info(f"{device.capitalize()}, aan")
+        #     else:
+        #         timer[device] = 0  # Reset timer als het niet donker genoeg is
+        #         logger.debug(f"Timer reset naar 0, lichtwaarde({sens_value}) niet onder drempelwaarde({threshold})")
+        # # device blijft aan tijdens het tijdvak
+        # elif not device_state[device] and not threshold:
+        #     logger.debug(f"{device.capitalize()} is nog niet aan en threshold is niet meegegeven")
+        #     for topic in topicList:
+        #         if topic != MQTT_TOPIC_SMARTPLUG5:
+        #             client.publish(topic, "1")
+        #             logger.debug(f"{topic}, aan")
+        #         else:
+        #             client.publish(topic, "2 1")
+        #             logger.debug(f"{topic}, aan")
+        #     device_state[device] = True
+        #     logger.info(f"{device.capitalize()} aan")
+    # else:
+    #     logger.debug(f"Tijd valt niet binnen {device}-tijdvak")
+    #     if device_state[device]:
+    #         logger.debug(f"{device.capitalize()} gaat uit (einde tijdvak)")
+    #         for topic in topicList:
+    #             if topic != MQTT_TOPIC_SMARTPLUG5:
+    #                 client.publish(topic, "0")
+    #                 logger.debug(f"{topic}, uit")
+    #             else:
+    #                 client.publish(topic, "2 0")
+    #                 logger.debug(f"{topic}, uit")
+    #         device_state[device] = False
+    #         logger.info(f"{device.capitalize()} uit")
+    #     timer[device] = 0  # Reset timer buiten tijdvak
 
 # Hoofdprogramma
 begin_tijd, eind_tijd = calculate_time_window()
