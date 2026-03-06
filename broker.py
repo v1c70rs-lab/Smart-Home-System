@@ -231,7 +231,7 @@ def manage_devices(device, begin_tijd, eind_tijd, topicList, sens_value=None, th
             logger.debug(f"sensor value ({sens_value}) is lower than threshold ({threshold}) (power on)")
             timer[device] += 10
             logger.debug(f"{device.capitalize()}-timer loopt: {timer[device]} seconden")
-            if timer[device] >= 60:
+            if timer[device] >= 6:
                 for topic in topicList:
                     if topic != MQTT_TOPIC_SMARTPLUG5:
                         client.publish(topic, "1")
@@ -253,8 +253,32 @@ def manage_devices(device, begin_tijd, eind_tijd, topicList, sens_value=None, th
                         client.publish(topic, "2 0")
                         logger.debug(f"{topic}, off")
                 device_state[device] = False
-        # else:
-            
+        elif not device_state[device] and not threshold:
+            logger.debug(f"{device.capitalize()} is nog niet aan en threshold is niet meegegeven")
+            for topic in topicList:
+                if topic != MQTT_TOPIC_SMARTPLUG5:
+                    client.publish(topic, "1")
+                    logger.debug(f"{topic}, aan")
+                else:
+                    client.publish(topic, "2 1")
+                    logger.debug(f"{topic}, aan")
+            device_state[device] = True
+            logger.info(f"{device.capitalize()} aan")
+        timer[device] = 0
+    else:
+        logger.debug(f"Tijd valt niet binnen {device}-tijdvak")
+        if device_state[device]:
+            logger.debug(f"{device.capitalize()} gaat uit (einde tijdvak)")
+            for topic in topicList:
+                if topic != MQTT_TOPIC_SMARTPLUG5:
+                    client.publish(topic, "0")
+                    logger.debug(f"{topic}, uit")
+                else:
+                    client.publish(topic, "2 0")
+                    logger.debug(f"{topic}, uit")
+            device_state[device] = False
+            logger.info(f"{device.capitalize()} uit")
+        timer[device] = 0  # Reset timer buiten tijdvak
 
         # if not device_state[device] and threshold:
         #     logger.debug(f"{device.capitalize()} is nog niet aan en threshold is meegegeven")
@@ -323,10 +347,10 @@ while True:
     logger.info(f"{device_state}")
 
     # Beheer deviceen
-    manage_devices("normaal", begin_tijd, eind_tijd, normaalTopicList, sens_value=light_value, threshold=45)
-    manage_devices("shabbat", shabbat_begin_tijd, shabbat_eind_tijd, shabbatTopicList, sens_value=light_value, threshold=100, dag_restrictie=4)
-    manage_devices("warmhoudplaat", warmhoudplaat_begin_tijd, warmhoudplaat_eind_tijd, warmhoudplaatTopicList, dag_restrictie=5)
-    manage_devices("warmhoudplaat2", shabbat_begin_tijd, shabbat_begin_tijd + timedelta(hours=1), warmhoudplaatTopicList, dag_restrictie=4)
-    manage_devices("kachel", begin_tijd, eind_tijd, kachelTopicList, sens_value=temp_value, threshold=190)
+    #manage_devices("normaal", begin_tijd, eind_tijd, normaalTopicList, sens_value=light_value, threshold=45)
+    #manage_devices("shabbat", shabbat_begin_tijd, shabbat_eind_tijd, shabbatTopicList, sens_value=light_value, threshold=100, dag_restrictie=4)
+    #manage_devices("warmhoudplaat", warmhoudplaat_begin_tijd, warmhoudplaat_eind_tijd, warmhoudplaatTopicList, dag_restrictie=5)
+    #manage_devices("warmhoudplaat2", shabbat_begin_tijd, shabbat_begin_tijd + timedelta(hours=1), warmhoudplaatTopicList, dag_restrictie=4)
+    manage_devices("kachel", begin_tijd, eind_tijd, kachelTopicList, sens_value=temp_value, threshold=200)
 
     time.sleep(10)
