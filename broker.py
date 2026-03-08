@@ -74,7 +74,7 @@ formatter = logging.Formatter(
 )
 
 console_handler = logging.StreamHandler()
-console_handler.setLevel("INFO")
+console_handler.setLevel("DEBUG")
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
@@ -101,7 +101,7 @@ MQTT_TOPIC_SMARTPLUG5 = "cmnd/test/SetChannel"
 MQTT_TOPIC_SMARTPLUG6 = "xxxxxxxxx"
 
 # Lijsten met MQTT-topics
-normaalTopicList = [MQTT_TOPIC_SMARTPLUG1, MQTT_TOPIC_SMARTPLUG2, MQTT_TOPIC_SMARTPLUG3, MQTT_TOPIC_SMARTPLUG4]
+dagelijksTopicList = [MQTT_TOPIC_SMARTPLUG1, MQTT_TOPIC_SMARTPLUG2, MQTT_TOPIC_SMARTPLUG3, MQTT_TOPIC_SMARTPLUG4]
 shabbatTopicList = [MQTT_TOPIC_SMARTPLUG5]
 warmhoudplaatTopicList = [MQTT_TOPIC_SMARTPLUG3]
 kachelTopicList = [MQTT_TOPIC_SMARTPLUG6]
@@ -117,8 +117,8 @@ longtitude = 4.9041
 tz_netherlands = pytz.timezone("Europe/Amsterdam")
 sun = Sun(latitude, longtitude)
 
-device_state = {"normaal": False, "shabbat": False, "warmhoudplaat": False, "warmhoudplaat2": False, "kachel": False}
-timer = {"normaal": 0, "shabbat": 0, "kachel": 0}
+device_state = {"dagelijks": False, "shabbat": False, "warmhoudplaat": False, "warmhoudplaat2": False, "kachel": False}
+timer = {"dagelijks": 0, "shabbat": 0, "kachel": 0}
 
 light_value = 1500
 temp_value = 1500
@@ -210,66 +210,77 @@ def manage_devices(device, begin_tijd, eind_tijd, topicList, sens_value=None, th
     # Als dag regstrictie is meegegeven, check dan welke dag het is
     if dag_restrictie:
         if dag_restrictie and huidige_tijd.weekday() != dag_restrictie:
-            logger.debug(f"{device.capitalize()} gaat niet aan, niet juiste dag!")
+            logger.debug(f"\"{device.capitalize()}\" won't turn on, not the right day!")
             if device_state[device]:
-                logger.debug(f"{device.capitalize()} device gaat uit (niet de juiste dag)!")
+                logger.debug(f"\"{device.capitalize()}\" goes off, not the right day!")
                 for topic in topicList:
                     if topic != MQTT_TOPIC_SMARTPLUG5:
                         client.publish(topic, "0")
-                        logger.debug(f"{topic}, uit")
+                        logger.debug(f"{topic}, off")
                     else:
                         client.publish(topic, "2 0")
-                        logger.debug(f"{topic}, uit")
+                        logger.debug(f"{topic}, off")
                 device_state[device] = False
-                logger.info(f"{device.capitalize()} uit")
+                logger.info(f"{device.capitalize()}, off")
             return
-        logger.debug(f"Juiste dag voor {device}")
+        logger.debug(f"\"{device.capitalize()}\" goes on, the right day!")
 
     if begin_tijd <= huidige_tijd <= eind_tijd:
-        logger.debug(f"Tijd valt binnen {device}-tijdvak")
-        if not device_state[device] and threshold:
-            logger.debug(f"{device.capitalize()} is nog niet aan en threshold is meegegeven")
-            if sens_value < threshold:
-                timer[device] += 10
-                logger.debug(f"{device.capitalize()}-timer loopt: {timer[device]} seconden")
-                if timer[device] >= 60:
-                    for topic in topicList:
-                        if topic != MQTT_TOPIC_SMARTPLUG5:
-                            client.publish(topic, "1")
-                            logger.debug(f"{topic}, aan")
-                        else:
-                            client.publish(topic, "2 1")
-                            logger.debug(f"{topic}, aan")
-                    device_state[device] = True
-                    logger.info(f"{device.capitalize()}, aan")
-            else:
-                timer[device] = 0  # Reset timer als het niet donker genoeg is
-                logger.debug(f"Timer reset naar 0, lichtwaarde({sens_value}) niet onder drempelwaarde({threshold})")
-        # device blijft aan tijdens het tijdvak
+        logger.debug(f"Current time is within {device}-time window")
+        if sens_value < threshold and not device_state[device]:
+            logger.debug(f"Sensor value ({sens_value}) is lower than threshold ({threshold})")
+            timer[device] += 10
+            logger.debug(f"Busy turning on {device.capitalize()} - timer: {timer[device]} seconds")
+            if timer[device] >= 60:
+                for topic in topicList:
+                    if topic != MQTT_TOPIC_SMARTPLUG5:
+                        client.publish(topic, "1")
+                        logger.debug(f"{topic}, on")
+                    else:
+                        client.publish(topic, "2 1")
+                        logger.debug(f"{topic}, on")
+                device_state[device] = True
+                logger.info(f"{device.capitalize()} on")
+        elif sens_value > threshold and device_state[device]:
+            logger.debug(f"sensor value ({sens_value}) is higher than threshold ({threshold})")
+            timer[device] += 10
+            logger.debug(f"Busy turning off {device.capitalize()} - timer: {timer[device]} seconds")
+            if timer[device] >= 60:
+                for topic in topicList:
+                    if topic != MQTT_TOPIC_SMARTPLUG5:
+                        client.publish(topic, "0")
+                        logger.debug(f"{topic}, off")
+                    else:
+                        client.publish(topic, "2 0")
+                        logger.debug(f"{topic}, off")
+                device_state[device] = False
+                logger.info(f"{device.capitalize()}, off")
+        # Deze elif is voor de warmhoudplaat / apparaten die geen sensor nodig hebben
         elif not device_state[device] and not threshold:
-            logger.debug(f"{device.capitalize()} is nog niet aan en threshold is niet meegegeven")
+            logger.debug(f"{device.capitalize()} isn't yet on and there is no threshold provided")
             for topic in topicList:
                 if topic != MQTT_TOPIC_SMARTPLUG5:
                     client.publish(topic, "1")
-                    logger.debug(f"{topic}, aan")
+                    logger.debug(f"{topic}, on")
                 else:
                     client.publish(topic, "2 1")
-                    logger.debug(f"{topic}, aan")
+                    logger.debug(f"{topic}, on")
             device_state[device] = True
-            logger.info(f"{device.capitalize()} aan")
+            logger.info(f"{device.capitalize()}, on")
+        timer[device] = 0
     else:
-        logger.debug(f"Tijd valt niet binnen {device}-tijdvak")
+        logger.debug(f"Current time is outside of {device}-time window")
         if device_state[device]:
-            logger.debug(f"{device.capitalize()} gaat uit (einde tijdvak)")
+            logger.debug(f"{device.capitalize()} goes off, outside of time window!")
             for topic in topicList:
                 if topic != MQTT_TOPIC_SMARTPLUG5:
                     client.publish(topic, "0")
-                    logger.debug(f"{topic}, uit")
+                    logger.debug(f"{topic}, off")
                 else:
                     client.publish(topic, "2 0")
-                    logger.debug(f"{topic}, uit")
+                    logger.debug(f"{topic}, off")
             device_state[device] = False
-            logger.info(f"{device.capitalize()} uit")
+            logger.info(f"{device.capitalize()}, off")
         timer[device] = 0  # Reset timer buiten tijdvak
 
 # Hoofdprogramma
@@ -286,18 +297,18 @@ while True:
         shabbat_begin_tijd, shabbat_eind_tijd = shabbat_calculate_time_window()
         warmhoudplaat_begin_tijd, warmhoudplaat_eind_tijd = warmhoudplaat_calculate_time_window()
 
-    logger.info(f"Huidige tijd: {huidige_tijd}")
-    logger.info(f"Normaal-tijdvak: {begin_tijd} - {eind_tijd}")
-    logger.info(f"Shabbat-tijdvak: {shabbat_begin_tijd} - {shabbat_eind_tijd}")
-    logger.info(f"Warmhoudplaat-tijdvak: {warmhoudplaat_begin_tijd} - {warmhoudplaat_eind_tijd}")
-    logger.info(f"Kachel-tijdvak: {begin_tijd} - {eind_tijd}")
+    logger.info(f"Current time: {huidige_tijd}")
+    logger.info(f"Dagelijks-time window: {begin_tijd} - {eind_tijd}")
+    logger.info(f"Shabbat-time window: {shabbat_begin_tijd} - {shabbat_eind_tijd}")
+    logger.info(f"Warmhoudplaat-time window: {warmhoudplaat_begin_tijd} - {warmhoudplaat_eind_tijd}")
+    logger.info(f"Kachel-timewindow: {begin_tijd} - {eind_tijd}")
     logger.info(f"{device_state}")
 
-    # Beheer deviceen
-    manage_devices("normaal", begin_tijd, eind_tijd, normaalTopicList, sens_value=light_value, threshold=45)
+    # Beheer devices
+    manage_devices("dagelijks", begin_tijd, eind_tijd, dagelijksTopicList, sens_value=light_value, threshold=45)
     manage_devices("shabbat", shabbat_begin_tijd, shabbat_eind_tijd, shabbatTopicList, sens_value=light_value, threshold=100, dag_restrictie=4)
     manage_devices("warmhoudplaat", warmhoudplaat_begin_tijd, warmhoudplaat_eind_tijd, warmhoudplaatTopicList, dag_restrictie=5)
     manage_devices("warmhoudplaat2", shabbat_begin_tijd, shabbat_begin_tijd + timedelta(hours=1), warmhoudplaatTopicList, dag_restrictie=4)
-    manage_devices("kachel", begin_tijd, eind_tijd, kachelTopicList, sens_value=temp_value, threshold=190)
+    manage_devices("kachel", begin_tijd, eind_tijd, kachelTopicList, sens_value=temp_value, threshold=200)
 
     time.sleep(10)
