@@ -150,17 +150,17 @@ def powerStateDevices(device, topicList, state):
     topic_map = {"on": (True, "1"),
                    "off": (False, "0")}
 
-    element = topic_map[state]
+    item = topic_map[state]
 
     for topic in topicList:
         if topic != MQTT_TOPIC_SMARTPLUG5:
-            client.publish(topic, f"{element[1]}")
+            client.publish(topic, f"{item[1]}")
             logger.debug(f"{topic}, {state}")
         else:
-            client.publish(topic, f"2 {element[1]}")
+            client.publish(topic, f"2 {item[1]}")
             logger.debug(f"{topic}, {state}")
 
-    device_state[device] = element[0]
+    device_state[device] = item[0]
     logger.info(f"{device.capitalize()}, {state}")
 
 # Bereken normale tijdvakken
