@@ -130,7 +130,7 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe(MQTT_TOPIC_TEMP)
 
 def on_message(client, userdata, message):
-    global light_value, temperature_value
+    # global light_value, temp_value
 
     if message.topic in topic_map:
         var_name, label = topic_map[message.topic]
@@ -144,6 +144,31 @@ client.on_connect = on_connect
 client.on_message = on_message
 client.connect(MQTT_BROKER, MQTT_PORT, 60)
 client.loop_start()
+
+# Dag restrictie check
+def f_day_restriction(device, topicList, day_restriction):
+    if day_restriction and huidige_tijd.weekday() != day_restriction:
+        logger.debug(f"\"{device.capitalize()}\" won't turn on, not the right day!")
+        if device_state[device]:
+            logger.debug(f"\"{device.capitalize()}\" goes off, not the right day!")
+            powerStateDevices(device, topicList, "off")
+        return False
+    logger.debug(f"\"{device.capitalize()}\" goes on, the right day!")
+
+# Seizoensperiode check
+def f_season_period(device, season_period):
+    start_datum1 = datetime.strptime(season_period[0], "%d-%m-%Y").replace(year=huidige_tijd.year)
+    start_datum = tz_netherlands.localize(start_datum1)
+    eind_datum1 = datetime.strptime(season_period[1], "%d-%m-%Y").replace(year=huidige_tijd.year)
+    eind_datum = tz_netherlands.localize(eind_datum1)
+    if start_datum > eind_datum:
+        # Indien de periode over de jaarwisseling gaat (bijv. okt - mrt)
+        eind_datum = eind_datum.replace(year=huidige_tijd.year + 1) if huidige_tijd < start_datum else eind_datum
+    
+    if not (start_datum <= huidige_tijd <= eind_datum): # Als de start_datum niet kleiner is dan huidige tijd en ook niet kleiner is dan eind_datum, dan zit de huidige_tijd niet binnen het seizoensvak
+        logger.debug(f"{device.capitalize()} wordt niet ingeschakeld buiten de season_period ({start_datum1}, {eind_datum1}).")
+        return False
+    logger.debug(f"Juiste season_period voor {device}")
 
 # Zet apparaten aan of uit
 def powerStateDevices(device, topicList, state):
@@ -203,48 +228,31 @@ def warmhoudplaat_calculate_time_window():
     return warmhoudplaat_start_time, warmhoudplaat_end_time
 
 # Beheer deviceen
-def manage_devices(device, begin_tijd, eind_tijd, topicList, sens_value=None, threshold=None, dag_restrictie=None, seizoensperiode=None):
-    huidige_tijd = datetime.now(tz_netherlands)
+def manage_devices(device, begin_tijd, eind_tijd, topicList, sens_value=None, threshold=None, day_restriction=None, season_period=None):
+    # huidige_tijd = datetime.now(tz_netherlands)
     global device_state, timer
 
-    # Als seizoensperiode is meegegeven, check dan of het binnen het seizoen valt
-    # Controleer seizoensperiode
-    if seizoensperiode:
-        start_datum1 = datetime.strptime(seizoensperiode[0], "%d-%m-%Y").replace(year=huidige_tijd.year)
-        start_datum = tz_netherlands.localize(start_datum1)
-
-        eind_datum1 = datetime.strptime(seizoensperiode[1], "%d-%m-%Y").replace(year=huidige_tijd.year)
-        eind_datum = tz_netherlands.localize(eind_datum1)
-
-        if start_datum > eind_datum:
-            # Indien de periode over de jaarwisseling gaat (bijv. okt - mrt)
-            eind_datum = eind_datum.replace(year=huidige_tijd.year + 1) if huidige_tijd < start_datum else eind_datum
-        
-        if not (start_datum <= huidige_tijd <= eind_datum): # Als de start_datum niet kleiner is dan huidige tijd en ook niet kleiner is dan eind_datum, dan zit de huidige_tijd niet binnen het seizoensvak
-            logger.debug(f"{device.capitalize()} wordt niet ingeschakeld buiten de seizoensperiode ({start_datum1}, {eind_datum1}).")
+    # Als season_period is meegegeven, check dan of het binnen het seizoen valt
+    # Controleer season_period
+    if season_period:
+        if not f_season_period(device, season_period):
             return
-        logger.debug(f"Juiste seizoensperiode voor {device}")
 
     # Als dag regstrictie is meegegeven, check dan welke dag het is
-    if dag_restrictie:
-        if dag_restrictie and huidige_tijd.weekday() != dag_restrictie:
-            logger.debug(f"\"{device.capitalize()}\" won't turn on, not the right day!")
-            if device_state[device]:
-                logger.debug(f"\"{device.capitalize()}\" goes off, not the right day!")
-                powerStateDevices(device, topicList, "off")
+    if day_restriction:
+        if not f_day_restriction(device, topicList, day_restriction):
             return
-        logger.debug(f"\"{device.capitalize()}\" goes on, the right day!")
 
     if begin_tijd <= huidige_tijd <= eind_tijd:
         logger.debug(f"Current time is within {device}-time window")
-        if sens_value < threshold and not device_state[device]:
+        if threshold and sens_value < threshold and not device_state[device]:
             logger.debug(f"Sensor value ({sens_value}) is lower than threshold ({threshold})")
             timer[device] += 10
             logger.debug(f"Busy turning on {device.capitalize()} - timer: {timer[device]} seconds")
             if timer[device] >= 60:
                 powerStateDevices(device, topicList, "on")
                 timer[device] = 0
-        elif sens_value > threshold and device_state[device]:
+        elif threshold and sens_value > threshold and device_state[device]:
             logger.debug(f"sensor value ({sens_value}) is higher than threshold ({threshold})")
             timer[device] += 10
             logger.debug(f"Busy turning off {device.capitalize()} - timer: {timer[device]} seconds")
@@ -252,7 +260,7 @@ def manage_devices(device, begin_tijd, eind_tijd, topicList, sens_value=None, th
                 powerStateDevices(device, topicList, "off")
                 timer[device] = 0
         # Deze elif is voor de warmhoudplaat / apparaten die geen sensor nodig hebben
-        elif not device_state[device] and not threshold:
+        elif not threshold and not device_state[device]:
             logger.debug(f"{device.capitalize()} isn't yet on and there is no threshold provided")
             powerStateDevices(device, topicList, "on")
     else:
@@ -287,9 +295,9 @@ while True:
 
     # Beheer devices
     manage_devices("dagelijks", begin_tijd, eind_tijd, dagelijksTopicList, sens_value=light_value, threshold=45)
-    manage_devices("shabbat", shabbat_begin_tijd, shabbat_eind_tijd, shabbatTopicList, sens_value=light_value, threshold=100, dag_restrictie=4)
-    manage_devices("warmhoudplaat", warmhoudplaat_begin_tijd, warmhoudplaat_eind_tijd, warmhoudplaatTopicList, dag_restrictie=5)
-    manage_devices("warmhoudplaat2", shabbat_begin_tijd, shabbat_begin_tijd + timedelta(hours=1), warmhoudplaatTopicList, dag_restrictie=4)
+    manage_devices("shabbat", shabbat_begin_tijd, shabbat_eind_tijd, shabbatTopicList, sens_value=light_value, threshold=100, day_restriction=4)
+    manage_devices("warmhoudplaat", warmhoudplaat_begin_tijd, warmhoudplaat_eind_tijd, warmhoudplaatTopicList, day_restriction=5)
+    manage_devices("warmhoudplaat2", shabbat_begin_tijd, shabbat_begin_tijd + timedelta(hours=1), warmhoudplaatTopicList, day_restriction=4)
     manage_devices("kachel", begin_tijd, eind_tijd, kachelTopicList, sens_value=temp_value, threshold=200)
 
     time.sleep(10)
