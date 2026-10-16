@@ -1,0 +1,199 @@
+- id: '1791640407899'
+  alias: Shabbat Begin
+  description: ''
+  triggers:
+  - trigger: time_pattern
+    seconds: /10
+  conditions:
+  - condition: time
+    after: input_datetime.season_begin
+    before: input_datetime.season_end
+  - condition: time
+    after: input_datetime.shabbat_start_time
+    before: input_datetime.shabbat_end_time
+    enabled: true
+  - condition: numeric_state
+    entity_id: input_number.lightlevel
+    below: 100
+  - condition: switch.is_off
+    target:
+      entity_id: input_boolean.block_shabbat_auto_on
+    options:
+      behavior: any
+      for: 00:00:00
+  actions:
+  - action: switch.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id: switch.wifi_smart_switch
+  - action: input_boolean.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id: input_boolean.block_shabbat_auto_on
+  - action: mqtt.publish
+    metadata: {}
+    data:
+      evaluate_payload: false
+      qos: '2'
+      retain: false
+      topic: cmnd/test/SetChannel
+      payload: '"2 1"'
+  mode: single
+- id: '1791640445739'
+  alias: Update Shabbat Times
+  description: ''
+  triggers:
+  - trigger: mqtt
+    options:
+      topic: homeassistant
+  conditions: []
+  actions:
+  - action: input_datetime.set_datetime
+    metadata: {}
+    target:
+      entity_id: input_datetime.shabbat_start_time
+    data:
+      datetime: '{{ today_at(trigger.payload) }}'
+  - action: input_datetime.set_datetime
+    metadata: {}
+    target:
+      entity_id: input_datetime.shabbat_end_time
+    data:
+      datetime: '{{ today_at((strptime(trigger.payload, ''%H:%M'') + timedelta(hours=1,
+        minutes=30)).time()) }}
+
+        '
+  mode: single
+- id: '1791924613440'
+  alias: Update Lightlevel
+  description: ''
+  triggers:
+  - trigger: mqtt
+    options:
+      topic: home/lightsensor
+  conditions: []
+  actions:
+  - action: input_number.set_value
+    metadata: {}
+    target:
+      entity_id: input_number.lightlevel
+    data:
+      value: '{{ trigger.payload }}'
+  mode: single
+- id: '1791985517171'
+  alias: Shabbat End
+  description: ''
+  triggers:
+  - trigger: time
+    at: input_datetime.shabbat_end_time
+  conditions: []
+  actions:
+  - action: mqtt.publish
+    metadata: {}
+    data:
+      evaluate_payload: false
+      qos: '2'
+      retain: false
+      topic: cmnd/test/SetChannel
+      payload: '"2 0"'
+  - action: input_boolean.turn_off
+    metadata: {}
+    target:
+      entity_id: input_boolean.block_shabbat_auto_on
+    data: {}
+  - action: switch.turn_off
+    metadata: {}
+    target:
+      device_id: 6b9a813e7f32e6525bad0fb8eb9ae534
+    data: {}
+  mode: single
+- id: '1791997861614'
+  alias: Normal Begin
+  description: ''
+  triggers:
+  - trigger: time_pattern
+    seconds: /10
+  conditions:
+  - condition: time
+    before: '22:30:00'
+    after: '16:18:00'
+  - condition: numeric_state
+    entity_id: input_number.lightlevel
+    below: 100
+  - condition: switch.is_off
+    target:
+      entity_id: input_boolean.block_normal_auto_on
+    options:
+      behavior: any
+      for: 00:00:00
+  actions:
+  - action: mqtt.publish
+    data:
+      qos: 2
+      retain: false
+      topic: cmnd/home/smartplug1/Power
+      payload: '1'
+  - action: mqtt.publish
+    data:
+      qos: 2
+      retain: false
+      topic: cmnd/home/smartplug2/Power
+      payload: '1'
+  - action: mqtt.publish
+    data:
+      qos: 2
+      retain: false
+      topic: cmnd/home/smartplug3/Power
+      payload: '1'
+  - action: mqtt.publish
+    data:
+      qos: 2
+      retain: false
+      topic: cmnd/home/smartplug4/Power
+      payload: '1'
+  - action: input_boolean.toggle
+    metadata: {}
+    target:
+      entity_id: input_boolean.block_normal_auto_on
+    data: {}
+  mode: single
+- id: '1792070881805'
+  alias: Normal End
+  description: ''
+  triggers:
+  - trigger: time
+    at: '22:30:00'
+  conditions: []
+  actions:
+  - action: mqtt.publish
+    data:
+      qos: 2
+      retain: false
+      topic: cmnd/home/smartplug1/Power
+      payload: '0'
+  - action: mqtt.publish
+    data:
+      qos: 2
+      retain: false
+      topic: cmnd/home/smartplug2/Power
+      payload: '0'
+  - action: mqtt.publish
+    data:
+      qos: 2
+      retain: false
+      topic: cmnd/home/smartplug3/Power
+      payload: '0'
+  - action: mqtt.publish
+    data:
+      qos: 2
+      retain: false
+      topic: cmnd/home/smartplug4/Power
+      payload: '0'
+  - action: input_boolean.turn_off
+    metadata: {}
+    target:
+      entity_id: input_boolean.block_normal_auto_on
+    data: {}
+  mode: single
