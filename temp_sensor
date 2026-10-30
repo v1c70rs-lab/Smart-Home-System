@@ -4,9 +4,20 @@ PowerSave_WFI 1
 startDriver CHT83XX
 CHT_Calibrate -2 0
 
+// Safety timeout: maximaal 30 seconden wakker
+addRepeatingEventID 30 1 1337 DeepSleep 900
+
+// Wacht op WiFi
 waitFor WiFiState 4
+
+// Wacht op MQTT
 waitFor MQTTState 1
 
+// Verbinding gelukt: annuleer safety timeout
+cancelRepeatingEvent 1337
+
+// Publiceer temperatuur
 publishChannel 1
 
+// Slaap 15 minuten
 DeepSleep 900
